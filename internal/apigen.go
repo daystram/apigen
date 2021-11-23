@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/daystram/apigen/internal/definition"
 )
 
 const (
@@ -13,6 +15,7 @@ const (
 )
 
 type APIGen struct {
+	Src    string
 	StdOut io.Writer
 	StdErr io.Writer
 	StdIn  io.Reader
@@ -25,12 +28,13 @@ func Main(args []string) int {
 		StdIn:  os.Stdin,
 	}
 
-	_, err := a.parseFlags(args)
+	fs, err := a.parseFlags(args)
 	if err != nil {
 		fmt.Fprintln(a.StdErr, "Error:", err)
 	}
+	a.Src = fs.Arg(0)
 
-	return ExitSuccess
+	return a.Run()
 }
 
 func (a *APIGen) parseFlags(args []string) (*flag.FlagSet, error) {
@@ -46,4 +50,15 @@ func (a *APIGen) parseFlags(args []string) (*flag.FlagSet, error) {
 		return nil, err
 	}
 	return fs, nil
+}
+
+func (a *APIGen) Run() int {
+	p := definition.NewParser()
+	_, err := p.ParseFile(a.Src)
+	if err != nil {
+		fmt.Fprintln(a.StdErr, "Error:", err)
+		return ExitError
+	}
+
+	return ExitSuccess
 }
