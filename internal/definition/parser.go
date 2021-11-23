@@ -2,6 +2,7 @@ package definition
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 )
@@ -16,7 +17,7 @@ func (p *Parser) Parse(r io.Reader) (Service, error) {
 	dec := json.NewDecoder(r)
 	var s Service
 	if err := dec.Decode(&s); err != nil {
-		return Service{}, err
+		return Service{}, fmt.Errorf("bad definition: %s", err)
 	}
 	return s, nil
 }
