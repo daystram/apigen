@@ -1,0 +1,16 @@
+{
+  "host": 7899,
+  "port": 8080,
+  "endpoints": [
+    {
+      "name": "User",
+      "path": "/user",
+      "actions": [
+        {
+          "method": "GET",
+          "description": "Get all users"
+        }
+      ]
+    }
+  ]
+}

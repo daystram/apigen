@@ -36,15 +36,19 @@ func (s *Service) UnmarshalJSON(data []byte) error {
 
 	err = json.Unmarshal(raw["host"], &s.Host)
 	if err != nil {
-		return fmt.Errorf("invalid host %s", err)
+		return fmt.Errorf("invalid host %s", raw["host"])
 	}
 	err = json.Unmarshal(raw["port"], &s.Port)
 	if err != nil {
-		return fmt.Errorf("invalid port %s", err)
+		return fmt.Errorf("invalid port %s", raw["port"])
 	}
 	err = json.Unmarshal(raw["endpoints"], &s.Endpoints)
 	if err != nil {
 		return err
+	}
+
+	if s.Port == 0 {
+		return fmt.Errorf("missing port")
 	}
 	return nil
 }

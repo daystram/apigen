@@ -1,0 +1,16 @@
+{
+  "host": "localhost",
+  "port": 0,
+  "endpoints": [
+    {
+      "name": "User",
+      "path": "/user",
+      "actions": [
+        {
+          "method": "GET",
+          "description": "Get all users"
+        }
+      ]
+    }
+  ]
+}

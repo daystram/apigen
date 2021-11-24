@@ -1,0 +1,38 @@
+{
+  "host": "localhost",
+  "port": 8080,
+  "endpoints": [
+    {
+      "name": "User",
+      "path": "/user",
+      "actions": [
+        {
+          "method": "GET",
+          "description": "Get all users"
+        },
+        {
+          "method": "POST",
+          "description": "Create user"
+        }
+      ]
+    },
+    {
+      "name": "Item",
+      "path": "/item/:id",
+      "actions": [
+        {
+          "method": "GET",
+          "description": "Get item by id"
+        },
+        {
+          "method": "PUT",
+          "description": "Update item by id"
+        },
+        {
+          "method": "DELETE",
+          "description": "Delete item by id"
+        }
+      ]
+    }
+  ]
+}
