@@ -32,8 +32,6 @@ func Generate(d definition.Service, pkg string) (FileGroup, error) {
 	}
 	fg = append(fg, controllers...)
 
-	// TODO: generate go mod files
-
 	return fg, nil
 }
 

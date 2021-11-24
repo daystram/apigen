@@ -90,6 +90,11 @@ func (a *APIGen) Run() int {
 			return ExitError
 		}
 	}
+	err = w.InitMod(a.Pkg)
+	if err != nil {
+		a.printErr(err)
+		return ExitError
+	}
 	return ExitSuccess
 }
 

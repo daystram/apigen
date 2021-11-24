@@ -4,7 +4,9 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 
 	"github.com/daystram/apigen/internal/generator"
 )
@@ -32,4 +34,17 @@ func (w *Writer) Write(f generator.File) error {
 	defer out.Close()
 
 	return printer.Fprint(out, w.fs, f.AST)
+}
+
+func (w *Writer) InitMod(pkg string) error {
+	cmd := exec.Command("go", "mod", "init", pkg)
+	cmd.Dir = "./" + filepath.Base(w.rootDir)
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command("go", "mod", "tidy")
+	cmd.Dir = filepath.Base(w.rootDir)
+	return cmd.Run()
 }
