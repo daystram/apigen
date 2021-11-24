@@ -1,5 +1,7 @@
 # apigen
 
+[![codecov](https://codecov.io/gh/daystram/apigen/branch/main/graph/badge.svg?token=xaElJVPCRy)](https://codecov.io/gh/daystram/apigen)
+
 apigen is an HTTP REST API server boilerplate generator.
 
 ## Install
