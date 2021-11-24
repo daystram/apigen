@@ -70,13 +70,13 @@ func (a *APIGen) parseFlags(args []string) (*flag.FlagSet, error) {
 
 func (a *APIGen) Run() int {
 	parser := definition.NewParser()
-	def, err := parser.ParseFile(a.Src)
+	svc, err := parser.ParseFile(a.Src)
 	if err != nil {
 		a.printErr(err)
 		return ExitError
 	}
 
-	fg, err := generator.Generate(def, a.Pkg)
+	fg, err := generator.Generate(svc, a.Pkg)
 	if err != nil {
 		a.printErr(err)
 		return ExitError
