@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"net/http"
 	"strings"
 
 	"github.com/daystram/apigen/internal/definition"
@@ -17,16 +18,16 @@ type File struct {
 	AST  *ast.File
 }
 
-func Generate(d definition.Service, pkg string) (FileGroup, error) {
+func Generate(s definition.Service, pkg string) (FileGroup, error) {
 	fg := make(FileGroup, 0)
 
-	main, err := generateMain(d, pkg)
+	main, err := generateMain(s, pkg)
 	if err != nil {
 		return nil, err
 	}
 	fg = append(fg, main...)
 
-	controllers, err := generateController(d, pkg)
+	controllers, err := generateController(s, pkg)
 	if err != nil {
 		return nil, err
 	}
@@ -35,8 +36,12 @@ func Generate(d definition.Service, pkg string) (FileGroup, error) {
 	return fg, nil
 }
 
-func generateMain(d definition.Service, pkg string) (FileGroup, error) {
+func generateMain(s definition.Service, pkg string) (FileGroup, error) {
 	fg := make(FileGroup, 0)
+
+	if s.Port == 0 {
+		return nil, fmt.Errorf("missing port")
+	}
 
 	fg = append(fg, File{
 		Name: "main.go",
@@ -95,7 +100,7 @@ func generateMain(d definition.Service, pkg string) (FileGroup, error) {
 													Key: &ast.Ident{Name: "Addr"},
 													Value: &ast.BasicLit{
 														Kind:  token.STRING,
-														Value: fmt.Sprintf(`"%s:%d"`, d.Host, d.Port),
+														Value: fmt.Sprintf(`"%s:%d"`, s.Host, s.Port),
 													},
 												},
 												&ast.KeyValueExpr{
@@ -174,7 +179,7 @@ func generateMain(d definition.Service, pkg string) (FileGroup, error) {
 	return fg, nil
 }
 
-func generateController(d definition.Service, pkg string) (FileGroup, error) {
+func generateController(s definition.Service, pkg string) (FileGroup, error) {
 	fg := make(FileGroup, 0)
 
 	routerFuncBody := make([]ast.Stmt, 0)
@@ -191,8 +196,13 @@ func generateController(d definition.Service, pkg string) (FileGroup, error) {
 			},
 		},
 	)
-	for _, e := range d.Endpoints {
+	for _, e := range s.Endpoints {
 		handlerDecls := make([]ast.Decl, 0)
+
+		if e.Name == "" {
+			return nil, fmt.Errorf("missing endpoint name")
+		}
+
 		handlerDecls = append(handlerDecls,
 			&ast.GenDecl{
 				Tok: token.IMPORT,
@@ -205,6 +215,11 @@ func generateController(d definition.Service, pkg string) (FileGroup, error) {
 		)
 
 		for _, a := range e.Actions {
+			if a.Method != http.MethodGet && a.Method != http.MethodPost &&
+				a.Method != http.MethodPut && a.Method != http.MethodDelete {
+				return nil, fmt.Errorf("unsupported method %s", a.Method)
+			}
+
 			handlerName := fmt.Sprintf(`%s%s`, a.Method, strings.Title(e.Name))
 			routerFuncBody = append(routerFuncBody,
 				&ast.ExprStmt{
