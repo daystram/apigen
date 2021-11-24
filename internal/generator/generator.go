@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
 
 	"github.com/daystram/apigen/internal/definition"
 )
@@ -20,15 +19,19 @@ type File struct {
 func Generate(d definition.Service, pkg string) (FileGroup, error) {
 	fg := make(FileGroup, 0)
 
-	// TODO: generate go mod files
-
 	main, err := generateMain(d, pkg)
 	if err != nil {
 		return nil, err
 	}
 	fg = append(fg, main...)
 
-	// TODO: generate controllers
+	controllers, err := generateController(d, pkg)
+	if err != nil {
+		return nil, err
+	}
+	fg = append(fg, controllers...)
+
+	// TODO: generate go mod files
 
 	return fg, nil
 }
@@ -92,7 +95,8 @@ func generateMain(d definition.Service, pkg string) (FileGroup, error) {
 									&ast.UnaryExpr{
 										Op: token.AND,
 										X: &ast.CompositeLit{
-											Type: &ast.SelectorExpr{X: &ast.Ident{Name: "http"}, Sel: &ast.Ident{Name: "Server"}},
+											Type:   &ast.SelectorExpr{X: &ast.Ident{Name: "http"}, Sel: &ast.Ident{Name: "Server"}},
+											Lbrace: 2,
 											Elts: []ast.Expr{
 												&ast.KeyValueExpr{
 													Key: &ast.Ident{Name: "Addr"},
@@ -132,6 +136,7 @@ func generateMain(d definition.Service, pkg string) (FileGroup, error) {
 													},
 												},
 											},
+											Rbrace: 2,
 										},
 									},
 								},
@@ -176,3 +181,77 @@ func generateMain(d definition.Service, pkg string) (FileGroup, error) {
 	return fg, nil
 }
 
+func generateController(d definition.Service, pkg string) (FileGroup, error) {
+	initializeRouterBody := make([]ast.Stmt, 0)
+	initializeRouterBody = append(initializeRouterBody,
+		&ast.AssignStmt{
+			Lhs: []ast.Expr{
+				&ast.Ident{Name: "router"},
+			},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{
+				&ast.CallExpr{
+					Fun: &ast.SelectorExpr{X: &ast.Ident{Name: "gin"}, Sel: &ast.Ident{Name: "Default"}},
+				},
+			},
+		},
+	)
+	for _, e := range d.Endpoints {
+		for _, a := range e.Actions {
+			initializeRouterBody = append(initializeRouterBody,
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{X: &ast.Ident{Name: "router"}, Sel: &ast.Ident{Name: a.Method}},
+						Args: []ast.Expr{
+							&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf(`"%s"`, e.Path)},
+							&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf(`%s%s`, a.Method, e.Name)},
+						},
+					},
+				},
+			)
+		}
+	}
+	initializeRouterBody = append(initializeRouterBody,
+		&ast.ReturnStmt{
+			Results: []ast.Expr{
+				&ast.Ident{Name: "router"},
+			},
+		},
+	)
+
+	fg := make(FileGroup, 0)
+	fg = append(fg, File{
+		Name: "init.go",
+		Dir:  "controllers",
+		AST: &ast.File{
+			Name: &ast.Ident{Name: "controllers"},
+			Decls: []ast.Decl{
+				&ast.GenDecl{
+					Tok: token.IMPORT,
+					Specs: []ast.Spec{
+						&ast.ImportSpec{
+							Path: &ast.BasicLit{Kind: token.STRING, Value: `"github.com/gin-gonic/gin"`},
+						},
+					},
+				},
+				&ast.FuncDecl{
+					Name: &ast.Ident{Name: "InitializeRouter"},
+					Type: &ast.FuncType{
+						Results: &ast.FieldList{
+							List: []*ast.Field{
+								{
+									Type: &ast.Ident{Name: "*gin.Engine"},
+								},
+							},
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: initializeRouterBody,
+					},
+				},
+			},
+		},
+	})
+
+	return fg, nil
+}
