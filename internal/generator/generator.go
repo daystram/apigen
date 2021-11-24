@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 
 	"github.com/daystram/apigen/internal/definition"
 )
@@ -49,12 +50,6 @@ func generateMain(d definition.Service, pkg string) (FileGroup, error) {
 				&ast.GenDecl{
 					Tok: token.IMPORT,
 					Specs: []ast.Spec{
-						&ast.ImportSpec{
-							Path: &ast.BasicLit{
-								Kind:  token.STRING,
-								Value: `"fmt"`,
-							},
-						},
 						&ast.ImportSpec{
 							Path: &ast.BasicLit{
 								Kind:  token.STRING,
@@ -182,8 +177,10 @@ func generateMain(d definition.Service, pkg string) (FileGroup, error) {
 }
 
 func generateController(d definition.Service, pkg string) (FileGroup, error) {
-	initializeRouterBody := make([]ast.Stmt, 0)
-	initializeRouterBody = append(initializeRouterBody,
+	fg := make(FileGroup, 0)
+
+	routerFuncBody := make([]ast.Stmt, 0)
+	routerFuncBody = append(routerFuncBody,
 		&ast.AssignStmt{
 			Lhs: []ast.Expr{
 				&ast.Ident{Name: "router"},
@@ -197,21 +194,58 @@ func generateController(d definition.Service, pkg string) (FileGroup, error) {
 		},
 	)
 	for _, e := range d.Endpoints {
+		handlerDecls := make([]ast.Decl, 0)
+		handlerDecls = append(handlerDecls,
+			&ast.GenDecl{
+				Tok: token.IMPORT,
+				Specs: []ast.Spec{
+					&ast.ImportSpec{
+						Path: &ast.BasicLit{Kind: token.STRING, Value: `"github.com/gin-gonic/gin"`},
+					},
+				},
+			},
+		)
+
 		for _, a := range e.Actions {
-			initializeRouterBody = append(initializeRouterBody,
+			handlerName := fmt.Sprintf(`%s%s`, a.Method, strings.Title(e.Name))
+			routerFuncBody = append(routerFuncBody,
 				&ast.ExprStmt{
 					X: &ast.CallExpr{
 						Fun: &ast.SelectorExpr{X: &ast.Ident{Name: "router"}, Sel: &ast.Ident{Name: a.Method}},
 						Args: []ast.Expr{
 							&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf(`"%s"`, e.Path)},
-							&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf(`%s%s`, a.Method, e.Name)},
+							&ast.BasicLit{Kind: token.STRING, Value: handlerName},
 						},
 					},
 				},
 			)
+			handlerDecls = append(handlerDecls,
+				&ast.FuncDecl{
+					Name: &ast.Ident{Name: handlerName},
+					Type: &ast.FuncType{
+						Params: &ast.FieldList{
+							List: []*ast.Field{
+								{Names: []*ast.Ident{{Name: "c"}}, Type: &ast.StarExpr{X: &ast.SelectorExpr{X: &ast.Ident{Name: "gin"}, Sel: &ast.Ident{Name: "Context"}}}},
+							},
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{},
+					},
+				},
+			)
 		}
+
+		fg = append(fg, File{
+			Name: fmt.Sprintf("%s.go", strings.ToLower(e.Name)),
+			Dir:  "controllers",
+			AST: &ast.File{
+				Name:  &ast.Ident{Name: "controllers"},
+				Decls: handlerDecls,
+			},
+		})
 	}
-	initializeRouterBody = append(initializeRouterBody,
+	routerFuncBody = append(routerFuncBody,
 		&ast.ReturnStmt{
 			Results: []ast.Expr{
 				&ast.Ident{Name: "router"},
@@ -219,7 +253,6 @@ func generateController(d definition.Service, pkg string) (FileGroup, error) {
 		},
 	)
 
-	fg := make(FileGroup, 0)
 	fg = append(fg, File{
 		Name: "init.go",
 		Dir:  "controllers",
@@ -246,7 +279,7 @@ func generateController(d definition.Service, pkg string) (FileGroup, error) {
 						},
 					},
 					Body: &ast.BlockStmt{
-						List: initializeRouterBody,
+						List: routerFuncBody,
 					},
 				},
 			},
